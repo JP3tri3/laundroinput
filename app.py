@@ -9,3 +9,5 @@ from sanic import response
 from sanic.request import Request
 from sanic.response import json
 from sanic_jinja2 import SanicJinja2
+
+test
