@@ -127,7 +127,7 @@ def activeOrderCheck(symbol):
     activeOrder = client.Order.Order_query(symbol=symbol).result()
     order = activeOrder[0]['result']
     if (order == []):
-        print("no active orders")
+        print("no pending orders")
         return 0
     else:
         orderId = order[0]['order_id']
@@ -244,6 +244,23 @@ def createOrder(side, symbol, order_type, price):
 def updateStopLoss(symbol):
     initialSl = float(activePositionEntryPrice(symbol)) - float(atr)
     changeStopLoss(symbol, initialSl)
+    flag = True
+    lockPrice = btcLastPrice()
+
+    if(atr == 0):
+        inputAtr()
+
+    while (flag == True):
+        if(activePositionCheck(symbol) == 1):
+            if(btcLastPrice() > lockPrice):
+                updatingStopLoss = btcLastPrice() - float(atr)
+                changeStopLoss(symbol, updatingStopLoss)
+                lockPrice = btcLastPrice()
+                print("Updated Stop Loss: " + str(updatingStopLoss))
+                print("")
+        else:
+            print("Position Closed")
+            flag = False
 
 
 def changeStopLoss(symbol, slAmount):
