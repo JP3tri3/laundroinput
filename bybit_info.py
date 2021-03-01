@@ -1,10 +1,13 @@
 import bybit
 import config
 import json
+import time
+import datetime
 
 client = bybit.bybit(test=True, api_key=config.BYBIT_TESTNET_API_KEY,
                      api_secret=config.BYBIT_TESTNET_API_SECRET)
 
+orderId = ""
 # info = client.Market.Market_symbolInfo().result()
 # keys = info[0]['result']
 
@@ -31,7 +34,6 @@ client = bybit.bybit(test=True, api_key=config.BYBIT_TESTNET_API_KEY,
 # myEthBalanceUSD = float(ethLastPrice) * myEthBalance
 
 # Wallet Balances:
-
 
 def btcWallet():
     myBtcWallet = client.Wallet.Wallet_getBalance(coin="BTC").result()
@@ -85,16 +87,6 @@ def btcInfo():
 #     activeOrderResult = activeOrder[0]['result']
 #     return activeOrderResult
 
-def activeOrder():
-    activeOrder = client.Order.Order_query(symbol="BTCUSD").result()
-    # print(activeOrder)
-    order = activeOrder[0]['result']
-    if (order == []):
-        return 0
-    else:
-        return 1
-
-
 def cancelAllOrders(symbol):
     client.Order.Order_cancelAll(symbol=symbol).result()
 
@@ -102,13 +94,124 @@ def cancelAllOrders(symbol):
 # def cancelOrder(symbol, orderId):
 #     client.Order.Order_cancel(symbol=symbol, order_id=orderId).result()
 
+def timeStamp():
+    ct = datetime.datetime.now()
+    print("Time: ", ct)
+
 
 def myPosition():
     position = client.Positions.Positions_myPosition(symbol="BTCUSD").result()
     print(position)
 
 
+def returnOrderID():
+    print(orderId)
+
+
 def changeStopLoss(symbol, subtract):
     stop_loss = str(btcLastPrice() - subtract)
     client.Positions.Positions_tradingStop(
         symbol=symbol, stop_loss=stop_loss).result()
+
+
+# def cancelOrder(orderId, symbol):
+#     client.LinearOrder.LinearOrder_cancel(
+#         symbol="BTCUSD", order_id=orderId).result()
+
+def closePosition(symbol, amount):
+    flag = True
+    currentPrice = btcLastPrice()
+    print("Forcing Close")
+    changeStopLoss(symbol, amount)
+    time.sleep(5)
+
+    while(flag == True):
+        if(activePositionCheck(symbol) == 1):
+            if (currentPrice > btcLastPrice()):
+                timeStamp()
+                print("Forcing Close")
+                changeStopLoss(symbol, amount)
+                print("Close Update: " + str(amount))
+                time.sleep(5)
+        else:
+            print("Position Closed")
+            flag = False
+
+
+def activeOrderCheck(symbol):
+    global orderId
+    activeOrder = client.Order.Order_query(symbol=symbol).result()
+    order = activeOrder[0]['result']
+    if (order == []):
+        print("no active orders")
+        return 0
+    else:
+        print("")
+        print("1 active order")
+        orderId = order[0]['order_id']
+        print("Order ID: " + orderId)
+        return 1
+
+
+def activePositionCheck(symbol):
+    position = client.Positions.Positions_myPosition(symbol=symbol).result()
+    positionResult = position[0]['result']
+    positionValue = positionResult['position_value']
+    if(positionValue != "0"):
+        return 1
+    else:
+        return 0
+
+
+def placeLongOrder(side, symbol, order_type, price):
+    global orderId
+    stop_loss = btcLastPrice() - 400
+    try:
+        print(
+            f"sending order {price} - {side} {symbol} {order_type} {stop_loss}")
+        order = client.Order.Order_new(side=side, symbol=symbol, order_type=order_type,
+                                       qty=1, price=price, time_in_force="PostOnly", stop_loss=stop_loss).result()
+        orderId = str(order[0]['result']['order_id'])
+    except Exception as e:
+        print("an exception occured - {}".format(e))
+        return False
+    return order
+
+
+def createOrder(side, symbol, order_type, price):
+    flag = False
+    while(flag == False):
+        if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
+            print("Attempting to place order...")
+            placeLongOrder(side=side, symbol=symbol,
+                           order_type=order_type, price=price)
+        else:
+            forceOrder(symbol, orderId)
+            print("")
+            print("Confirming Order...")
+            if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
+                print("Order Failed")
+            else:
+                print("Order Successful")
+                flag = True
+
+
+def changeOrderPrice(symbol, price, orderId):
+    client.Order.Order_replace(
+        symbol=symbol, order_id=orderId, p_r_price=str(price)).result()
+    timeStamp()
+    print("Updating Order Price")
+
+
+def forceOrder(symbol, orderId):
+    flag = False
+
+    while(flag == False):
+        if (activeOrderCheck(symbol) == 1):
+            price = btcLastPrice() - 0.50
+            changeOrderPrice(symbol, price, orderId)
+            print("Order Price Updated: " + str(price))
+            print("")
+            time.sleep(5)
+        else:
+            flag = True
