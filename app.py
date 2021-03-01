@@ -87,7 +87,7 @@ def main():
             print("Updated Stop Loss")
 
         elif(taskInput == "close"):
-            bybit_info.closePosition("BTCUSD", 5)
+            bybit_info.closePosition("BTCUSD", 2)
 
         elif(taskInput == "change"):
             bybit_info.activeOrderCheck()
@@ -106,6 +106,9 @@ def main():
             print("Position: ")
             # bybit_info.myPosition()
             print(bybit_info.activePositionCheck())
+
+        elif(taskInput == "test"):
+            bybit_info.activeOrderPrice("BTCUSD")
 
         else:
             print("Invalid Input, try again...")

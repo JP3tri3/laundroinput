@@ -112,6 +112,7 @@ def changeStopLoss(symbol, subtract):
     stop_loss = str(btcLastPrice() - subtract)
     client.Positions.Positions_tradingStop(
         symbol=symbol, stop_loss=stop_loss).result()
+    print("Stop at: " + stop_loss)
 
 
 # def cancelOrder(orderId, symbol):
@@ -131,7 +132,6 @@ def closePosition(symbol, amount):
                 timeStamp()
                 print("Forcing Close")
                 changeStopLoss(symbol, amount)
-                print("Close Update: " + str(amount))
                 time.sleep(5)
         else:
             print("Position Closed")
@@ -151,6 +151,12 @@ def activeOrderCheck(symbol):
         orderId = order[0]['order_id']
         print("Order ID: " + orderId)
         return 1
+
+
+# def activeOrderPrice(price):
+#     activeOrder = client.Order.Order_query(symbol=symbol).result()
+#     order = activeOrder[0]['result']
+#     print(order)
 
 
 def activePositionCheck(symbol):
@@ -186,7 +192,7 @@ def createOrder(side, symbol, order_type, price):
             placeLongOrder(side=side, symbol=symbol,
                            order_type=order_type, price=price)
         else:
-            forceOrder(symbol, orderId)
+            forceOrder(symbol, orderId, price)
             print("")
             print("Confirming Order...")
             if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
@@ -203,15 +209,18 @@ def changeOrderPrice(symbol, price, orderId):
     print("Updating Order Price")
 
 
-def forceOrder(symbol, orderId):
+def forceOrder(symbol, orderId, price):
     flag = False
+    limitPrice = price
 
     while(flag == False):
         if (activeOrderCheck(symbol) == 1):
-            price = btcLastPrice() - 0.50
-            changeOrderPrice(symbol, price, orderId)
-            print("Order Price Updated: " + str(price))
-            print("")
-            time.sleep(5)
+            if (limitPrice != btcLastPrice()) or (limitPrice != price):
+                price = btcLastPrice() - 0.50
+                limitPrice = price
+                changeOrderPrice(symbol, price, orderId)
+                print("Order Price Updated: " + str(price))
+                print("")
+                time.sleep(5)
         else:
             flag = True
