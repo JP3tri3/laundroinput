@@ -113,6 +113,7 @@ def changeStopLoss(symbol, subtract):
     stop_loss = str(btcLastPrice() - subtract)
     client.Positions.Positions_tradingStop(
         symbol=symbol, stop_loss=stop_loss).result()
+    print("Current Price: " + str(btcLastPrice()))
     print("Stop at: " + stop_loss)
 
 
@@ -130,6 +131,7 @@ def closePosition(symbol, amount):
     while(flag == True):
         if(activePositionCheck(symbol) == 1):
             if (btcLastPrice() > stopLossInputPrice):
+                stopLossInputPrice = btcLastPrice()
                 print("")
                 print("Forcing Close")
                 timeStamp()
