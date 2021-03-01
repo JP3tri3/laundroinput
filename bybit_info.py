@@ -8,6 +8,7 @@ client = bybit.bybit(test=True, api_key=config.BYBIT_TESTNET_API_KEY,
                      api_secret=config.BYBIT_TESTNET_API_SECRET)
 
 orderId = ""
+orderPrice = 0
 # info = client.Market.Market_symbolInfo().result()
 # keys = info[0]['result']
 
@@ -121,16 +122,17 @@ def changeStopLoss(symbol, subtract):
 
 def closePosition(symbol, amount):
     flag = True
-    currentPrice = btcLastPrice()
+    stopLossInputPrice = btcLastPrice()
     print("Forcing Close")
     changeStopLoss(symbol, amount)
     time.sleep(5)
 
     while(flag == True):
         if(activePositionCheck(symbol) == 1):
-            if (currentPrice > btcLastPrice()):
-                timeStamp()
+            if (btcLastPrice() > stopLossInputPrice):
+                print("")
                 print("Forcing Close")
+                timeStamp()
                 changeStopLoss(symbol, amount)
                 time.sleep(5)
         else:
@@ -146,10 +148,7 @@ def activeOrderCheck(symbol):
         print("no active orders")
         return 0
     else:
-        print("")
-        print("1 active order")
         orderId = order[0]['order_id']
-        print("Order ID: " + orderId)
         return 1
 
 
@@ -185,12 +184,14 @@ def placeLongOrder(side, symbol, order_type, price):
 
 
 def createOrder(side, symbol, order_type, price):
+    global orderPrice
     flag = False
     while(flag == False):
         if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
             print("Attempting to place order...")
             placeLongOrder(side=side, symbol=symbol,
                            order_type=order_type, price=price)
+            orderPrice = price
         else:
             forceOrder(symbol, orderId, price)
             print("")
@@ -203,24 +204,26 @@ def createOrder(side, symbol, order_type, price):
 
 
 def changeOrderPrice(symbol, price, orderId):
-    client.Order.Order_replace(
-        symbol=symbol, order_id=orderId, p_r_price=str(price)).result()
-    timeStamp()
-    print("Updating Order Price")
+    global orderPrice
+    if (price != orderPrice):
+        client.Order.Order_replace(
+            symbol=symbol, order_id=orderId, p_r_price=str(price)).result()
+        timeStamp()
+        print("Updating Order Price")
 
 
 def forceOrder(symbol, orderId, price):
     flag = False
-    limitPrice = price
+    currentPrice = btcLastPrice()
 
     while(flag == False):
         if (activeOrderCheck(symbol) == 1):
-            if (limitPrice != btcLastPrice()) or (limitPrice != price):
+            if (btcLastPrice() != currentPrice):
+                currentPrice = btcLastPrice()
                 price = btcLastPrice() - 0.50
-                limitPrice = price
                 changeOrderPrice(symbol, price, orderId)
                 print("Order Price Updated: " + str(price))
                 print("")
-                time.sleep(5)
+            time.sleep(2)
         else:
             flag = True
