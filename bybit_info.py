@@ -22,19 +22,57 @@ ltcusdtInfo = keys[6]
 linkusdtInfo = keys[7]
 xtzusdtInfo = keys[8]
 
-# wallet balance:
-myBtcWallet = client.Wallet.Wallet_getBalance(coin="BTC").result()
-myEthWallet = client.Wallet.Wallet_getBalance(coin="ETH").result()
-
-myBtcBalance = myBtcWallet[0]['result']['BTC']['available_balance']
-myEthBalance = myEthWallet[0]['result']['ETH']['available_balance']
-
 # Price Information:
 ethLastPrice = ethInfo['last_price']
-btcLastPrice = btcInfo['last_price']
-btcMarkPrice = btcInfo['mark_price']
-btcAskPrice = btcInfo['ask_price']
-btcIndexPrice = btcInfo['index_price']
+
 
 # eth Balance in USD
-myEthBalanceUSD = float(ethLastPrice) * myEthBalance
+# myEthBalanceUSD = float(ethLastPrice) * myEthBalance
+
+# Wallet Balances:
+
+
+def btcWallet():
+    myBtcWallet = client.Wallet.Wallet_getBalance(coin="BTC").result()
+    myBtcBalance = myBtcWallet[0]['result']['BTC']['available_balance']
+    print(myBtcBalance)
+
+
+def ethWallet():
+    myEthWallet = client.Wallet.Wallet_getBalance(coin="ETH").result()
+    myEthBalance = myEthWallet[0]['result']['ETH']['available_balance']
+    print(myEthBalance)
+
+# BTC Info:
+
+
+def btcPriceInfo():
+    info = client.Market.Market_symbolInfo().result()
+    keys = info[0]['result']
+    btcInfo = keys[0]
+
+    btcLastPrice = btcInfo['last_price']
+    btcMarkPrice = btcInfo['mark_price']
+    btcAskPrice = btcInfo['ask_price']
+    btcIndexPrice = btcInfo['index_price']
+
+    print("")
+    print("Last Price: " + btcLastPrice)
+    print("Mark Price: " + btcMarkPrice)
+    print("Ask Price: " + btcAskPrice)
+    print("Index Price: " + btcIndexPrice)
+    print("")
+
+
+def btcLastPrice():
+    info = client.Market.Market_symbolInfo().result()
+    keys = info[0]['result']
+    btcInfo = keys[0]['last_price']
+    return float(btcInfo)
+
+
+def btcInfo():
+    info = client.Market.Market_symbolInfo().result()
+    keys = info[0]['result']
+    btcInfo = keys[0]
+    print(btcInfo)
