@@ -10,6 +10,8 @@ client = bybit.bybit(test=True, api_key=config.BYBIT_TESTNET_API_KEY,
 orderId = ""
 orderPrice = 0
 inputQuantity = 1
+entry_price = ""
+stop_loss = ""
 
 # manual ATR
 
@@ -228,6 +230,7 @@ def forceOrder(symbol, orderId, side):
 
 def createOrder(side, symbol, order_type, price):
     global orderPrice
+    global entry_price
     flag = False
     inputAtr()
 
@@ -244,11 +247,14 @@ def createOrder(side, symbol, order_type, price):
             if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
                 print("Order Failed")
             else:
+                entry_price = activePositionEntryPrice(symbol)
+                print("Entry Price: " + str(entry_price))
                 print("Order Successful")
                 flag = True
 
     updateStopLoss(symbol, side)
-
+    print("Entry Price: " + str(entry_price))
+    print("Exit Price: " + str(stop_loss))
 
 # Close & Stoploss
 
@@ -282,13 +288,16 @@ def updateStopLoss(symbol, side):
                     print("")
         else:
             print("Position Closed")
+            print("")
             flag = False
 
 
 def changeStopLoss(symbol, slAmount):
+    global stop_loss
     stop_loss = str(slAmount)
     client.Positions.Positions_tradingStop(
         symbol=symbol, stop_loss=stop_loss).result()
+    print("")
     print("Current Price: " + str(btcLastPrice()))
     print("Stop at: " + stop_loss)
 

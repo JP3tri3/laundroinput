@@ -56,6 +56,7 @@ def inputOptions():
     print("Position: 'position'")
     print("Change Order: 'change'")
     print("Order Id: 'order id'")
+    print("Update SL: 'update sl'")
     print("Exit: 'exit'")
 
 
@@ -129,14 +130,23 @@ def main():
 
         elif(taskInput == "position"):
             print("Position: ")
-            # bybit_info.myPosition()
-            print(bybit_info.activePositionCheck("BTCUSD"))
+            bybit_info.myPosition()
 
         elif(taskInput == "atr"):
             bybit_info.inputAtr()
 
         elif(taskInput == "test"):
-            bybit_info.testShort()
+            print(bybit_info.activePositionEntryPrice("BTCUSD"))
+
+        elif(taskInput == "update sl"):
+            flag = False
+            while(flag == False):
+                side = input("Enter Side ('Buy' or 'Sell'")
+                if(side == 'Buy') or (side == 'Sell'):
+                    flag = True
+                    bybit_info.updateStopLoss("BTCUSD", side)
+                else:
+                    print("Invalid Entry...")
 
         else:
             print("Invalid Input, try again...")
