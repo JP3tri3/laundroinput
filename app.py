@@ -34,17 +34,27 @@ def shutdown():
 def inputOptions():
     print("")
     print("Input Options:")
+    print("")
+    print("Market Actions:")
+    print("")
     print("Create Long Order: 'long'")
+    print("Create Short Order: 'short'")
+    print("Create Long Market Order: 'long market'")
+    print("Create Short Market Order: 'short market'")
+    print("Cancel Pending Orders: 'cancel'")
+    print("SL Close: 'closesl'")
+    print("Market Close: 'closem'")
+    print("")
+    print("Development Info:")
+    print("")
+    print("Stop Loss: 'stoploss'")
     print("BTC Price info: 'btc price'")
     print("BTC Info: 'btc info'")
     print("BTC Wallet: 'btc wallet'")
     print("Eth Wallet: 'eth wallet'")
     print("Active Orders: 'active'")
     print("Position: 'position'")
-    print("Cancel Orders: 'cancel'")
     print("Change Order: 'change'")
-    print("Stop Loss: 'stoploss'")
-    print("Market Close: 'close'")
     print("Order Id: 'order id'")
     print("Exit: 'exit'")
 
@@ -71,7 +81,19 @@ def main():
 
         elif(taskInput == "long"):
             bybit_info.createOrder("Buy", "BTCUSD", "Limit",
-                                   bybit_info.btcLastPrice() - 0.50)
+                                   bybit_info.limitPriceDifference("Buy"))
+
+        elif(taskInput == "short"):
+            bybit_info.createOrder("Sell", "BTCUSD", "Limit",
+                                   bybit_info.limitPriceDifference("Sell"))
+
+        elif(taskInput == "long market"):
+            bybit_info.createOrder("Buy", "BTCUSD", "Market",
+                                   bybit_info.btcLastPrice())
+
+        elif(taskInput == "short market"):
+            bybit_info.createOrder("Sell", "BTCUSD", "Market",
+                                   bybit_info.btcLastPrice())
 
         elif(taskInput == "btc wallet"):
             bybit_info.btcWallet()
@@ -86,8 +108,11 @@ def main():
             bybit_info.changeStopLoss("BTCUSD", 500)
             print("Updated Stop Loss")
 
-        elif(taskInput == "close"):
+        elif(taskInput == "closesl"):
             bybit_info.closePosition("BTCUSD")
+
+        elif(taskInput == "closem"):
+            bybit_info.closePositionMarket("BTCUSD")
 
         elif(taskInput == "change"):
             bybit_info.activeOrderCheck()
@@ -105,13 +130,13 @@ def main():
         elif(taskInput == "position"):
             print("Position: ")
             # bybit_info.myPosition()
-            print(bybit_info.activePositionCheck())
+            print(bybit_info.activePositionCheck("BTCUSD"))
 
         elif(taskInput == "atr"):
             bybit_info.inputAtr()
 
         elif(taskInput == "test"):
-            bybit_info.updateStopLoss("BTCUSD")
+            bybit_info.testShort()
 
         else:
             print("Invalid Input, try again...")

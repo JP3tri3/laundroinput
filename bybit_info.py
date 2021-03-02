@@ -9,6 +9,7 @@ client = bybit.bybit(test=True, api_key=config.BYBIT_TESTNET_API_KEY,
 
 orderId = ""
 orderPrice = 0
+inputQuantity = 1
 
 # manual ATR
 
@@ -97,8 +98,11 @@ def btcInfo():
 
 # Order Functions
 
-def limitPriceDifference():
-    return str(btcLastPrice() - 0.50)
+def limitPriceDifference(side):
+    if(side == "Buy"):
+        return str(btcLastPrice() - 0.50)
+    else:
+        return str(btcLastPrice() + 0.50)
 
 
 def cancelAllOrders(symbol):
@@ -172,14 +176,19 @@ def inputAtr():
             print("Invalid Input, try again...")
 
 
-def placeLongOrder(side, symbol, order_type, price):
+def placeOrder(side, symbol, order_type, price):
     global orderId
-    stop_loss = btcLastPrice() - float(atr)
+
+    if(side == "Buy"):
+        stop_loss = btcLastPrice() - float(atr)
+    else:
+        stop_loss = btcLastPrice() + float(atr)
+
     try:
         print(
             f"sending order {price} - {side} {symbol} {order_type} {stop_loss}")
         order = client.Order.Order_new(side=side, symbol=symbol, order_type=order_type,
-                                       qty=1, price=price, time_in_force="PostOnly", stop_loss=stop_loss).result()
+                                       qty=inputQuantity, price=price, time_in_force="PostOnly", stop_loss=stop_loss).result()
         orderId = str(order[0]['result']['order_id'])
     except Exception as e:
         print("an exception occured - {}".format(e))
@@ -196,10 +205,10 @@ def changeOrderPrice(symbol, price, orderId):
         print("Updating Order Price")
 
 
-def forceOrder(symbol, orderId, price):
+def forceOrder(symbol, orderId, side):
     flag = False
     currentPrice = btcLastPrice()
-    price = price
+    price = limitPriceDifference(side)
 
     while(flag == False):
         if (activeOrderCheck(symbol) == 1):
@@ -208,7 +217,7 @@ def forceOrder(symbol, orderId, price):
                 print("currentPrice: " + str(currentPrice))
                 print("price: " + str(price))
                 currentPrice = btcLastPrice()
-                price = limitPriceDifference()
+                price = limitPriceDifference(side)
                 changeOrderPrice(symbol, price, orderId)
                 print("Order Price Updated: " + str(price))
                 print("")
@@ -225,11 +234,11 @@ def createOrder(side, symbol, order_type, price):
     while(flag == False):
         if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
             print("Attempting to place order...")
-            placeLongOrder(side=side, symbol=symbol,
-                           order_type=order_type, price=limitPriceDifference())
+            placeOrder(side=side, symbol=symbol,
+                       order_type=order_type, price=limitPriceDifference(side))
             orderPrice = price
         else:
-            forceOrder(symbol, orderId, limitPriceDifference())
+            forceOrder(symbol, orderId, side)
             print("")
             print("Confirming Order...")
             if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
@@ -238,11 +247,18 @@ def createOrder(side, symbol, order_type, price):
                 print("Order Successful")
                 flag = True
 
+    updateStopLoss(symbol, side)
+
+
 # Close & Stoploss
 
 
-def updateStopLoss(symbol):
-    initialSl = float(activePositionEntryPrice(symbol)) - float(atr)
+def updateStopLoss(symbol, side):
+    if(side == "Buy"):
+        initialSl = float(activePositionEntryPrice(symbol)) - float(atr)
+    else:
+        initialSl = float(activePositionEntryPrice(symbol)) + float(atr)
+
     changeStopLoss(symbol, initialSl)
     flag = True
     lockPrice = btcLastPrice()
@@ -252,12 +268,18 @@ def updateStopLoss(symbol):
 
     while (flag == True):
         if(activePositionCheck(symbol) == 1):
-            if(btcLastPrice() > lockPrice):
-                updatingStopLoss = btcLastPrice() - float(atr)
-                changeStopLoss(symbol, updatingStopLoss)
-                lockPrice = btcLastPrice()
-                print("Updated Stop Loss: " + str(updatingStopLoss))
-                print("")
+            if(side == "Buy"):
+                if(btcLastPrice() > lockPrice):
+                    updatingStopLoss = btcLastPrice() - float(atr)
+                    changeStopLoss(symbol, updatingStopLoss)
+                    lockPrice = btcLastPrice()
+                    print("")
+            else:
+                if(btcLastPrice() < lockPrice):
+                    updatingStopLoss = btcLastPrice() + float(atr)
+                    changeStopLoss(symbol, updatingStopLoss)
+                    lockPrice = btcLastPrice()
+                    print("")
         else:
             print("Position Closed")
             flag = False
@@ -271,7 +293,7 @@ def changeStopLoss(symbol, slAmount):
     print("Stop at: " + stop_loss)
 
 
-def closePosition(symbol):
+def closePositionSl(symbol):
     flag = True
     stopLossInputPrice = btcLastPrice()
     print("Forcing Close")
@@ -290,3 +312,9 @@ def closePosition(symbol):
         else:
             print("Position Closed")
             flag = False
+
+
+def closePositionMarket(symbol):
+    client.Order.Order_new(side="Sell", symbol=symbol, order_type="Market",
+                           qty=inputQuantity, time_in_force="GoodTillCancel").result()
+    print("Position Closed at: " + str(btcLastPrice()))
