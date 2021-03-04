@@ -9,11 +9,11 @@ client = bybit.bybit(test=True, api_key=config.BYBIT_TESTNET_API_KEY,
 
 orderId = ""
 orderPrice = 0
-margin = 5
+margin = 5.0
 inputQuantity = 100 * margin
 entry_price = 0.0
 stop_loss = 0
-level = 0
+level = entry_price
 # manual ATR
 
 atr = 0
@@ -149,6 +149,22 @@ def activePositionCheck(symbol):
     else:
         return 0
 
+# traceback test
+
+
+def printActivePosition(symbol):
+    position = client.Positions.Positions_myPosition(symbol=symbol).result()
+    positionResult = position[0]['result']
+    positionValue = positionResult['position_value']
+    return(positionValue)
+
+
+def printActivePositionResult(symbol):
+    position = client.Positions.Positions_myPosition(symbol=symbol).result()
+    positionResult = position[0]['result']
+    positionValue = positionResult['position_value']
+    return(positionResult)
+
 
 def activePositionEntryPrice(symbol):
     position = client.Positions.Positions_myPosition(symbol=symbol).result()
@@ -174,8 +190,6 @@ def inputAtr():
 
 def placeOrder(side, symbol, order_type, price):
     global orderId
-    global entry_price
-    entry_price = btcLastPrice()
 
     if(side == "Buy"):
         stop_loss = btcLastPrice() - float(calculateOnePercentLessEntry())
@@ -227,8 +241,8 @@ def forceOrder(symbol, orderId, side):
 def createOrder(side, symbol, order_type, price):
     global orderPrice
     global entry_price
+    global level
     flag = False
-    inputAtr()
 
     while(flag == False):
         if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
@@ -243,7 +257,8 @@ def createOrder(side, symbol, order_type, price):
             if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
                 print("Order Failed")
             else:
-                entry_price = activePositionEntryPrice(symbol)
+                entry_price = float(activePositionEntryPrice(symbol))
+                level = entry_price
                 print("Entry Price: " + str(entry_price))
                 print("Order Successful")
                 flag = True
@@ -256,59 +271,50 @@ def createOrder(side, symbol, order_type, price):
 
 
 def updateStopLoss(symbol, side):
-    if(side == "Buy"):
-        initialSl = float(activePositionEntryPrice(symbol)) - \
-            float(calculateOnePercentLessEntry())
-    else:
-        initialSl = float(activePositionEntryPrice(symbol)) + \
-            float(calculateOnePercentLessEntry())
-
-    changeStopLoss(symbol, initialSl)
     flag = True
-    lockPrice = btcLastPrice()
-
-    if(atr == 0):
-        inputAtr()
 
     while (flag == True):
         if(activePositionCheck(symbol) == 1):
             if(side == "Buy"):
-                # print(entry_price)
-                # print(calculatePercentGained())
-                # print(calculateOnePercentDifference())
-                if(btcLastPrice() > lockPrice):
-                    # updatingStopLoss = btcLastPrice() - float(atr)
-                    changeStopLoss(symbol, stop_loss)
-                    lockPrice = btcLastPrice()
+                if(btcLastPrice() > level):
+                    calculateStopLoss(side)
+                    changeStopLoss(side, symbol, stop_loss)
                     print("Stop Loss: " + str(stop_loss))
                     print("Level: " + str(level))
                     print("")
+                    time.sleep(2)
+                else:
+                    print("Waiting...")
+                    time.sleep(2)
             else:
-                if(btcLastPrice() < lockPrice):
-                    updatingStopLoss = btcLastPrice() + float(atr)
-                    changeStopLoss(symbol, updatingStopLoss)
-                    lockPrice = btcLastPrice()
+                if(btcLastPrice() < level):
+                    calculateStopLoss(side)
+                    changeStopLoss(side, symbol, stop_loss)
                     print("")
+                    time.sleep(2)
+                else:
+                    print("Waiting...")
+                    time.sleep(2)
         else:
             print("Position Closed")
             print("")
             flag = False
 
 
-def changeStopLoss(symbol, slAmount):
-    calculateStopLoss()
+def changeStopLoss(side, symbol, slAmount):
     client.Positions.Positions_tradingStop(
         symbol=symbol, stop_loss=str(stop_loss)).result()
     print("")
     print("Current Price: " + str(btcLastPrice()))
     print("Stop at: " + str(stop_loss))
+    print("Percent Gained: " + str(calculatePercentGained(side)))
 
 
-def closePositionSl(symbol):
+def closePositionSl(symbol, side):
     flag = True
     stopLossInputPrice = btcLastPrice()
     print("Forcing Close")
-    changeStopLoss(symbol, btcLastPrice() - float(2))
+    changeStopLoss(side, symbol, btcLastPrice() - float(2))
     time.sleep(5)
 
     while(flag == True):
@@ -318,7 +324,7 @@ def closePositionSl(symbol):
                 print("")
                 print("Forcing Close")
                 timeStamp()
-                changeStopLoss(symbol, btcLastPrice() - float(2))
+                changeStopLoss(side, symbol, btcLastPrice() - float(2))
                 time.sleep(5)
         else:
             print("Position Closed")
@@ -344,23 +350,41 @@ def calculateOnePercentLessEntry():
     return onePercentDifference
 
 
-def calculatePercentGained():
-    difference = (btcLastPrice() - float(entry_price))
+def calculatePercentGained(side):
+    if(side == "Buy"):
+        difference = (btcLastPrice() - float(entry_price))
+    else:
+        difference = (float(entry_price) - btcLastPrice())
+
     percent = (difference/btcLastPrice()) * 100
     percentWithMargin = (percent) * margin
     return float(percentWithMargin)
 
 
-def calculateStopLoss():
+def calculateStopLoss(side):
     global level
     global stop_loss
-    level = entry_price
+    percentGained = calculatePercentGained(side)
 
-    if (calculatePercentGained() < 0.25):
-        stop_loss = calculateOnePercentLessEntry()
-    elif (calculatePercentGained() >= 0.25) and (calculatePercentGained() < 0.5):
-        stop_loss = entry_price
-        level = btcLastPrice()
-    elif (calculatePercentGained() >= 0.5):
+    if (percentGained < 0.25):
+        if (side == "Buy"):
+            stop_loss = level - calculateOnePercentLessEntry()
+        else:
+            stop_loss = level + calculateOnePercentLessEntry()
+    elif (percentGained >= 0.25) and (percentGained < 0.5):
         stop_loss = level
-        level = btcLastPrice()
+        level = entry_price + entry_price*(0.025/margin)
+    elif (percentGained >= 0.5) and (percentGained < 0.75):
+        stop_loss = level
+        level = entry_price + entry_price*(0.05/margin)
+    elif (percentGained >= 0.75) and (percentGained < 1):
+        stop_loss = level
+        level = entry_price + entry_price*(0.075/margin)
+    elif (percentGained >= 1) and (percentGained < 1.5):
+        stop_loss = level
+        level = entry_price + entry_price*(0.1/margin)
+    else:
+        if (side == "Buy"):
+            stop_loss = (btcLastPrice() - 300.00)
+        else:
+            stop_loss = (btcLastPrice() + 300.00)

@@ -33,7 +33,7 @@ def shutdown():
 
 def inputOptions():
     print("")
-    print("Input Options:")
+    print("TESTNET - Input Options:")
     print("")
     print("Market Actions:")
     print("")
@@ -137,6 +137,9 @@ def main():
 
         elif(taskInput == "test"):
             print(bybit_info.activePositionEntryPrice("BTCUSD"))
+
+        elif(taskInput == "test2"):
+            print(bybit_info.printActivePositionResult("BTCUSD"))
 
         elif(taskInput == "update sl"):
             flag = False
