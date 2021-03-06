@@ -14,6 +14,9 @@ inputQuantity = 100 * margin
 entry_price = 0.0
 stop_loss = 0
 level = entry_price
+symbol = "BTCUSD"
+side = ""
+
 # manual ATR
 
 atr = 0
@@ -24,6 +27,19 @@ atr10m = 0
 atr15m = 0
 atr30m = 0
 atr1hr = 0
+
+
+def setInitialValues(inputSymbol):
+    # global symbol
+    global side
+    position = client.Positions.Positions_myPosition(
+        symbol=inputSymbol).result()
+    positionResult = position[0]['result']
+    side = positionResult['side']
+    # symbol = positionResult['symbol']
+
+
+setInitialValues(symbol)
 
 
 # info = client.Market.Market_symbolInfo().result()
@@ -67,6 +83,14 @@ def ethWallet():
 # BTC Info:
 
 
+def getSymbol():
+    return symbol
+
+
+def getSide():
+    return side
+
+
 def btcPriceInfo():
     info = client.Market.Market_symbolInfo().result()
     keys = info[0]['result']
@@ -98,10 +122,10 @@ def btcInfo():
     btcInfo = keys[0]
     print(btcInfo)
 
-
 # Order Functions
 
-def cancelAllOrders(symbol):
+
+def cancelAllOrders():
     client.Order.Order_cancelAll(symbol=symbol).result()
 
 
@@ -111,7 +135,7 @@ def timeStamp():
 
 
 def myPosition():
-    position = client.Positions.Positions_myPosition(symbol="BTCUSD").result()
+    position = client.Positions.Positions_myPosition(symbol=symbol).result()
     print(position)
 
 
@@ -121,8 +145,7 @@ def returnOrderID():
 
 # Active Checks
 
-
-def activeOrderCheck(symbol):
+def activeOrderCheck():
     global orderId
     activeOrder = client.Order.Order_query(symbol=symbol).result()
     order = activeOrder[0]['result']
@@ -134,14 +157,17 @@ def activeOrderCheck(symbol):
         return 1
 
 
-# def activeOrderPrice(price):
-#     activeOrder = client.Order.Order_query(symbol=symbol).result()
-#     order = activeOrder[0]['result']
-#     print(order)
-
-
-def activePositionCheck(symbol):
+def activePositionTest(symbol):
     position = client.Positions.Positions_myPosition(symbol=symbol).result()
+    positionResult = position[0]['result']
+    positionSide = positionResult['side']
+    positionSymbol = positionResult['symbol']
+    print(positionSide)
+    print(positionSymbol)
+
+
+def activePositionCheck():
+    position = client.Positions.Positions_myPosition(symbol="BTCUSD").result()
     positionResult = position[0]['result']
     positionValue = positionResult['position_value']
     if(positionValue != "0"):
@@ -152,21 +178,21 @@ def activePositionCheck(symbol):
 # traceback test
 
 
-def printActivePosition(symbol):
+def printActivePosition():
     position = client.Positions.Positions_myPosition(symbol=symbol).result()
     positionResult = position[0]['result']
     positionValue = positionResult['position_value']
     return(positionValue)
 
 
-def printActivePositionResult(symbol):
+def printActivePositionResult():
     position = client.Positions.Positions_myPosition(symbol=symbol).result()
     positionResult = position[0]['result']
     positionValue = positionResult['position_value']
     return(positionResult)
 
 
-def activePositionEntryPrice(symbol):
+def activePositionEntryPrice():
     position = client.Positions.Positions_myPosition(symbol=symbol).result()
     positionResult = position[0]['result']
     positionEntryPrice = positionResult['entry_price']
@@ -188,14 +214,14 @@ def inputAtr():
             print("Invalid Input, try again...")
 
 
-def placeOrder(side, symbol, order_type, price):
+def placeOrder(order_type, price):
     global orderId
 
     if(side == "Buy"):
         stop_loss = btcLastPrice() - float(calculateOnePercentLessEntry())
     else:
         stop_loss = btcLastPrice() + float(calculateOnePercentLessEntry())
-
+    print("Initial Stop Loss: " + str(stop_loss))
     try:
         print(
             f"sending order {price} - {side} {symbol} {order_type} {stop_loss}")
@@ -208,7 +234,7 @@ def placeOrder(side, symbol, order_type, price):
     return order
 
 
-def changeOrderPrice(symbol, price, orderId):
+def changeOrderPrice(price, orderId):
     global orderPrice
     if (price != orderPrice):
         client.Order.Order_replace(
@@ -217,20 +243,20 @@ def changeOrderPrice(symbol, price, orderId):
         print("Updating Order Price")
 
 
-def forceOrder(symbol, orderId, side):
+def forceOrder(orderId):
     flag = False
     currentPrice = btcLastPrice()
-    price = limitPriceDifference(side)
+    price = limitPriceDifference()
 
     while(flag == False):
-        if (activeOrderCheck(symbol) == 1):
+        if (activeOrderCheck() == 1):
             if (btcLastPrice() != currentPrice) and (btcLastPrice() != price):
                 print("btcLastPrice: " + str(btcLastPrice()))
                 print("currentPrice: " + str(currentPrice))
                 print("price: " + str(price))
                 currentPrice = btcLastPrice()
-                price = limitPriceDifference(side)
-                changeOrderPrice(symbol, price, orderId)
+                price = limitPriceDifference()
+                changeOrderPrice(price, orderId)
                 print("Order Price Updated: " + str(price))
                 print("")
             time.sleep(2)
@@ -238,47 +264,60 @@ def forceOrder(symbol, orderId, side):
             flag = True
 
 
-def createOrder(side, symbol, order_type, price):
+def createOrder(sideInput, symbolInput, order_type):
     global orderPrice
     global entry_price
     global level
+    global side
+    global symbol
+
+    symbol = symbolInput
+    side = sideInput
     flag = False
+    entry_price = limitPriceDifference()
 
     while(flag == False):
-        if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
+        if ((activeOrderCheck() == 0) and (activePositionCheck() == 0)):
             print("Attempting to place order...")
-            placeOrder(side=side, symbol=symbol,
-                       order_type=order_type, price=limitPriceDifference(side))
-            orderPrice = price
+            placeOrder(order_type=order_type, price=limitPriceDifference())
+            orderPrice = limitPriceDifference
         else:
-            forceOrder(symbol, orderId, side)
+            forceOrder(orderId)
             print("")
             print("Confirming Order...")
-            if ((activeOrderCheck(symbol) == 0) and (activePositionCheck(symbol) == 0)):
+            if ((activeOrderCheck() == 0) and (activePositionCheck() == 0)):
                 print("Order Failed")
             else:
-                entry_price = float(activePositionEntryPrice(symbol))
+                entry_price = float(activePositionEntryPrice())
                 level = entry_price
                 print("Entry Price: " + str(entry_price))
                 print("Order Successful")
                 flag = True
 
-    updateStopLoss(symbol, side)
+    updateStopLoss()
     print("Entry Price: " + str(entry_price))
     print("Exit Price: " + str(stop_loss))
 
 # Close & Stoploss
 
 
-def updateStopLoss(symbol, side):
+def limitPriceDifference():
+    if(side == "Buy"):
+        limitPriceDifference = btcLastPrice() - 0.50
+    else:
+        limitPriceDifference = btcLastPrice() + 0.50
+    return limitPriceDifference
+
+
+def updateStopLoss():
     flag = True
 
     while (flag == True):
-        if(activePositionCheck(symbol) == 1):
+        if(activePositionCheck() == 1):
             if(side == "Buy"):
                 if(btcLastPrice() > level):
-                    calculateStopLoss(side)
-                    changeStopLoss(side, symbol, stop_loss)
+                    calculateStopLoss()
+                    changeStopLoss(stop_loss)
                     print("Stop Loss: " + str(stop_loss))
                     print("Level: " + str(level))
                     print("")
@@ -288,8 +327,8 @@ def updateStopLoss(symbol, side):
                     time.sleep(2)
             else:
                 if(btcLastPrice() < level):
-                    calculateStopLoss(side)
-                    changeStopLoss(side, symbol, stop_loss)
+                    calculateStopLoss()
+                    changeStopLoss(stop_loss)
                     print("")
                     time.sleep(2)
                 else:
@@ -301,47 +340,50 @@ def updateStopLoss(symbol, side):
             flag = False
 
 
-def changeStopLoss(side, symbol, slAmount):
+def changeStopLoss(slAmount):
     client.Positions.Positions_tradingStop(
         symbol=symbol, stop_loss=str(stop_loss)).result()
     print("")
     print("Current Price: " + str(btcLastPrice()))
     print("Stop at: " + str(stop_loss))
-    print("Percent Gained: " + str(calculatePercentGained(side)))
+    print("Percent Gained: " + str(calculatePercentGained()))
 
 
-def closePositionSl(symbol, side):
+def closePositionSl():
     flag = True
     stopLossInputPrice = btcLastPrice()
     print("Forcing Close")
-    changeStopLoss(side, symbol, btcLastPrice() - float(2))
+    changeStopLoss(btcLastPrice() - float(2))
     time.sleep(5)
 
     while(flag == True):
-        if(activePositionCheck(symbol) == 1):
+        if(activePositionCheck() == 1):
             if (btcLastPrice() > stopLossInputPrice):
                 stopLossInputPrice = btcLastPrice()
                 print("")
                 print("Forcing Close")
                 timeStamp()
-                changeStopLoss(side, symbol, btcLastPrice() - float(2))
+                changeStopLoss(btcLastPrice() - float(2))
                 time.sleep(5)
         else:
             print("Position Closed")
             flag = False
 
 
-def closePositionMarket(symbol):
-    client.Order.Order_new(side="Sell", symbol=symbol, order_type="Market",
-                           qty=inputQuantity, time_in_force="GoodTillCancel").result()
-    print("Position Closed at: " + str(btcLastPrice()))
+def closePositionMarket():
+    # position = client.Positions.Positions_myPosition(symbol="BTCUSD").result()
+    # positionResult = position[0]['result']
+    # side = positionResult['side']
+    # symbol = positionResult['symbol']
 
-
-def limitPriceDifference(side):
-    if(side == "Buy"):
-        return str(btcLastPrice() - 0.50)
+    if(side == "Sell"):
+        client.Order.Order_new(side="Buy", symbol=symbol, order_type="Market",
+                               qty=inputQuantity, time_in_force="GoodTillCancel").result()
     else:
-        return str(btcLastPrice() + 0.50)
+        client.Order.Order_new(side="Sell", symbol=symbol, order_type="Market",
+                               qty=inputQuantity, time_in_force="GoodTillCancel").result()
+
+    print("Position Closed at: " + str(btcLastPrice()))
 
 
 def calculateOnePercentLessEntry():
@@ -350,7 +392,7 @@ def calculateOnePercentLessEntry():
     return onePercentDifference
 
 
-def calculatePercentGained(side):
+def calculatePercentGained():
     if(side == "Buy"):
         difference = (btcLastPrice() - float(entry_price))
     else:
@@ -361,30 +403,42 @@ def calculatePercentGained(side):
     return float(percentWithMargin)
 
 
-def calculateStopLoss(side):
+def calculateStopLoss():
     global level
     global stop_loss
-    percentGained = calculatePercentGained(side)
+    percentGained = calculatePercentGained()
 
-    if (percentGained < 0.25):
-        if (side == "Buy"):
-            stop_loss = level - calculateOnePercentLessEntry()
-        else:
-            stop_loss = level + calculateOnePercentLessEntry()
-    elif (percentGained >= 0.25) and (percentGained < 0.5):
-        stop_loss = level
-        level = entry_price + entry_price*(0.025/margin)
-    elif (percentGained >= 0.5) and (percentGained < 0.75):
-        stop_loss = level
-        level = entry_price + entry_price*(0.05/margin)
-    elif (percentGained >= 0.75) and (percentGained < 1):
-        stop_loss = level
-        level = entry_price + entry_price*(0.075/margin)
-    elif (percentGained >= 1) and (percentGained < 1.5):
-        stop_loss = level
-        level = entry_price + entry_price*(0.1/margin)
-    else:
-        if (side == "Buy"):
-            stop_loss = (btcLastPrice() - 300.00)
-        else:
-            stop_loss = (btcLastPrice() + 300.00)
+    stop_loss = 100
+    # if (side == "Buy"):
+    #     if (percentGained < 0.25):
+    #         stop_loss = level - calculateOnePercentLessEntry()
+    #     elif (percentGained >= 0.25) and (percentGained < 0.5):
+    #         stop_loss = level
+    #         level = entry_price + entry_price*(0.025/margin)
+    #     elif (percentGained >= 0.5) and (percentGained < 0.75):
+    #         stop_loss = level
+    #         level = entry_price + entry_price*(0.05/margin)
+    #     elif (percentGained >= 0.75) and (percentGained < 1):
+    #         stop_loss = level
+    #         level = entry_price + entry_price*(0.075/margin)
+    #     elif (percentGained >= 1) and (percentGained < 1.5):
+    #         stop_loss = level
+    #         level = entry_price + entry_price*(0.1/margin)
+    #     else:
+
+    # else:
+    #     if (percentGained < 0.25):
+    #         stop_loss = level + calculateOnePercentLessEntry()
+    #     elif (percentGained >= 0.25) and (percentGained < 0.5):
+    #         stop_loss = level
+    #         level = entry_price - entry_price*(0.025/margin)
+    #     elif (percentGained >= 0.5) and (percentGained < 0.75):
+    #         stop_loss = level
+    #         level = entry_price - entry_price*(0.05/margin)
+    #     elif (percentGained >= 0.75) and (percentGained < 1):
+    #         stop_loss = level
+    #         level = entry_price - entry_price*(0.075/margin)
+    #     elif (percentGained >= 1) and (percentGained < 1.5):
+    #         stop_loss = level
+    #         level = entry_price - entry_price*(0.1/margin)
+    #     else:

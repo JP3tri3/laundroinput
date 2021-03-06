@@ -63,6 +63,8 @@ def inputOptions():
 def main():
     global flag
 
+    print("")
+
     inputOptions()
 
     while(flag == True):
@@ -81,20 +83,16 @@ def main():
             bybit_info.btcInfo()
 
         elif(taskInput == "long"):
-            bybit_info.createOrder("Buy", "BTCUSD", "Limit",
-                                   bybit_info.limitPriceDifference("Buy"))
+            bybit_info.createOrder("Buy", "BTCUSD", "Limit")
 
         elif(taskInput == "short"):
-            bybit_info.createOrder("Sell", "BTCUSD", "Limit",
-                                   bybit_info.limitPriceDifference("Sell"))
+            bybit_info.createOrder("Sell", "BTCUSD", "Limit")
 
         elif(taskInput == "long market"):
-            bybit_info.createOrder("Buy", "BTCUSD", "Market",
-                                   bybit_info.btcLastPrice())
+            bybit_info.createOrder("Buy", "BTCUSD", "Market")
 
         elif(taskInput == "short market"):
-            bybit_info.createOrder("Sell", "BTCUSD", "Market",
-                                   bybit_info.btcLastPrice())
+            bybit_info.createOrder("Sell", "BTCUSD", "Market")
 
         elif(taskInput == "btc wallet"):
             bybit_info.btcWallet()
@@ -106,14 +104,14 @@ def main():
             print(bybit_info.activeOrderCheck())
 
         elif(taskInput == "stoploss"):
-            bybit_info.changeStopLoss("BTCUSD", 500)
+            bybit_info.changeStopLoss(500)
             print("Updated Stop Loss")
 
         elif(taskInput == "closesl"):
-            bybit_info.closePosition("BTCUSD")
+            bybit_info.closePositionSl()
 
         elif(taskInput == "closem"):
-            bybit_info.closePositionMarket("BTCUSD")
+            bybit_info.closePositionMarket()
 
         elif(taskInput == "change"):
             bybit_info.activeOrderCheck()
@@ -121,7 +119,7 @@ def main():
                 "BTCUSD", bybit_info.btcLastPrice() - 0.50, orderId)
 
         elif(taskInput == "cancel"):
-            bybit_info.cancelAllOrders("BTCUSD")
+            bybit_info.cancelAllOrders()
             print("Orders Cancelled")
 
         elif(taskInput == "order id"):
@@ -136,10 +134,16 @@ def main():
             bybit_info.inputAtr()
 
         elif(taskInput == "test"):
-            print(bybit_info.activePositionEntryPrice("BTCUSD"))
+            print(bybit_info.activePositionCheck())
 
-        elif(taskInput == "test2"):
-            print(bybit_info.printActivePositionResult("BTCUSD"))
+        elif(taskInput == "symbol"):
+            print(bybit_info.getSymbol())
+
+        elif(taskInput == "side"):
+            print(bybit_info.getSide())
+
+        elif(taskInput == "changesymbol"):
+            bybit_info.setInitialValues()
 
         elif(taskInput == "update sl"):
             flag = False
