@@ -54,7 +54,6 @@ def inputOptions():
     print("Eth Wallet: 'eth wallet'")
     print("Active Orders: 'active'")
     print("Position: 'position'")
-    print("Change Order: 'change'")
     print("Order Id: 'order id'")
     print("Update SL: 'update sl'")
     print("Exit: 'exit'")
@@ -113,11 +112,6 @@ def main():
         elif(taskInput == "closem"):
             bybit_info.closePositionMarket()
 
-        elif(taskInput == "change"):
-            bybit_info.activeOrderCheck()
-            bybit_info.changeOrderPrice(
-                "BTCUSD", bybit_info.btcLastPrice() - 0.50, orderId)
-
         elif(taskInput == "cancel"):
             bybit_info.cancelAllOrders()
             print("Orders Cancelled")
@@ -134,7 +128,7 @@ def main():
             bybit_info.inputAtr()
 
         elif(taskInput == "test"):
-            print(bybit_info.activePositionCheck())
+            print(bybit_info.getPositionSize())
 
         elif(taskInput == "symbol"):
             print(bybit_info.getSymbol())
@@ -148,10 +142,10 @@ def main():
         elif(taskInput == "update sl"):
             flag = False
             while(flag == False):
-                side = input("Enter Side ('Buy' or 'Sell'")
-                if(side == 'Buy') or (side == 'Sell'):
+                slAmountInput = input("Enter SL Amount:")
+                if slAmountInput.isnumeric():
                     flag = True
-                    bybit_info.updateStopLoss("BTCUSD", side)
+                    bybit_info.changeStopLoss(slAmountInput)
                 else:
                     print("Invalid Entry...")
 

@@ -16,6 +16,7 @@ stop_loss = 0
 level = entry_price
 symbol = "BTCUSD"
 side = ""
+percentLevel = 0.0
 
 # manual ATR
 
@@ -175,6 +176,12 @@ def activePositionCheck():
     else:
         return 0
 
+
+def getPositionSize():
+    position = client.Positions.Positions_myPosition(symbol=symbol).result()
+    positionResult = position[0]['result']
+    return positionResult['size']
+
 # traceback test
 
 
@@ -270,7 +277,9 @@ def createOrder(sideInput, symbolInput, order_type):
     global level
     global side
     global symbol
+    global percentLevel
 
+    percentLevel = 0.0
     symbol = symbolInput
     side = sideInput
     flag = False
@@ -297,6 +306,7 @@ def createOrder(sideInput, symbolInput, order_type):
     updateStopLoss()
     print("Entry Price: " + str(entry_price))
     print("Exit Price: " + str(stop_loss))
+    print("Percent Level: " + str(percentLevel))
 
 # Close & Stoploss
 
@@ -317,23 +327,23 @@ def updateStopLoss():
             if(side == "Buy"):
                 if(btcLastPrice() > level):
                     calculateStopLoss()
-                    changeStopLoss(stop_loss)
-                    print("Stop Loss: " + str(stop_loss))
-                    print("Level: " + str(level))
-                    print("")
-                    time.sleep(2)
+                    time.sleep(4)
                 else:
                     print("Waiting...")
-                    time.sleep(2)
+                    print("Level: " + str(level))
+                    print("BTC Price: " + str(btcLastPrice()))
+                    print("")
+                    time.sleep(4)
             else:
                 if(btcLastPrice() < level):
                     calculateStopLoss()
-                    changeStopLoss(stop_loss)
-                    print("")
-                    time.sleep(2)
+                    time.sleep(4)
                 else:
                     print("Waiting...")
-                    time.sleep(2)
+                    print("Level: " + str(level))
+                    print("BTC Price: " + str(btcLastPrice()))
+                    print("")
+                    time.sleep(4)
         else:
             print("Position Closed")
             print("")
@@ -342,11 +352,9 @@ def updateStopLoss():
 
 def changeStopLoss(slAmount):
     client.Positions.Positions_tradingStop(
-        symbol=symbol, stop_loss=str(stop_loss)).result()
+        symbol=symbol, stop_loss=str(slAmount)).result()
     print("")
-    print("Current Price: " + str(btcLastPrice()))
-    print("Stop at: " + str(stop_loss))
-    print("Percent Gained: " + str(calculatePercentGained()))
+    print("Changed stop Loss to: " + str(stop_loss))
 
 
 def closePositionSl():
@@ -371,24 +379,23 @@ def closePositionSl():
 
 
 def closePositionMarket():
-    # position = client.Positions.Positions_myPosition(symbol="BTCUSD").result()
-    # positionResult = position[0]['result']
-    # side = positionResult['side']
-    # symbol = positionResult['symbol']
+    positionSize = getPositionSize()
 
     if(side == "Sell"):
         client.Order.Order_new(side="Buy", symbol=symbol, order_type="Market",
-                               qty=inputQuantity, time_in_force="GoodTillCancel").result()
+                               qty=positionSize, time_in_force="GoodTillCancel").result()
     else:
         client.Order.Order_new(side="Sell", symbol=symbol, order_type="Market",
-                               qty=inputQuantity, time_in_force="GoodTillCancel").result()
+                               qty=positionSize, time_in_force="GoodTillCancel").result()
 
-    print("Position Closed at: " + str(btcLastPrice()))
+    if (activePositionCheck() == 1):
+        print("Error Closing Position")
+    else:
+        print("Position Closed at: " + str(btcLastPrice()))
 
 
 def calculateOnePercentLessEntry():
     onePercentDifference = (float(entry_price) * 0.01) / margin
-    print("One percent Difference: " + str(onePercentDifference))
     return onePercentDifference
 
 
@@ -406,39 +413,53 @@ def calculatePercentGained():
 def calculateStopLoss():
     global level
     global stop_loss
+    global percentLevel
+    processTrigger = percentLevel
     percentGained = calculatePercentGained()
 
-    stop_loss = 100
-    # if (side == "Buy"):
-    #     if (percentGained < 0.25):
-    #         stop_loss = level - calculateOnePercentLessEntry()
-    #     elif (percentGained >= 0.25) and (percentGained < 0.5):
-    #         stop_loss = level
-    #         level = entry_price + entry_price*(0.025/margin)
-    #     elif (percentGained >= 0.5) and (percentGained < 0.75):
-    #         stop_loss = level
-    #         level = entry_price + entry_price*(0.05/margin)
-    #     elif (percentGained >= 0.75) and (percentGained < 1):
-    #         stop_loss = level
-    #         level = entry_price + entry_price*(0.075/margin)
-    #     elif (percentGained >= 1) and (percentGained < 1.5):
-    #         stop_loss = level
-    #         level = entry_price + entry_price*(0.1/margin)
-    #     else:
+    print("calculating Stop Loss:")
+    if (percentLevel < 0.25):
+        if (side == "Buy"):
+            stop_loss = (entry_price - calculateOnePercentLessEntry())
+        else:
+            stop_loss = (entry_price + calculateOnePercentLessEntry())
 
-    # else:
-    #     if (percentGained < 0.25):
-    #         stop_loss = level + calculateOnePercentLessEntry()
-    #     elif (percentGained >= 0.25) and (percentGained < 0.5):
-    #         stop_loss = level
-    #         level = entry_price - entry_price*(0.025/margin)
-    #     elif (percentGained >= 0.5) and (percentGained < 0.75):
-    #         stop_loss = level
-    #         level = entry_price - entry_price*(0.05/margin)
-    #     elif (percentGained >= 0.75) and (percentGained < 1):
-    #         stop_loss = level
-    #         level = entry_price - entry_price*(0.075/margin)
-    #     elif (percentGained >= 1) and (percentGained < 1.5):
-    #         stop_loss = level
-    #         level = entry_price - entry_price*(0.1/margin)
-    #     else:
+        percentLevel = 0.25
+        print("Percent Gained: " + str(percentGained))
+        print("Percent Level: " + str(percentLevel))
+        print("Level: " + str(level))
+        print("")
+    elif (percentGained >= 0.25) and (percentLevel < 0.5):
+        level = entry_price
+        percentLevel = 0.5
+        print("Percent Gained: " + str(percentGained))
+        print("Percent Level: " + str(percentLevel))
+        print("Level: " + str(level))
+        print("")
+    elif (percentGained >= 0.5) and (percentLevel < 0.75):
+        percentLevel = 0.75
+        level = btcLastPrice()
+        print("Percent Gained: " + str(percentGained))
+        print("Percent Level: " + str(percentLevel))
+        print("Level: " + str(level))
+        print("")
+    elif (percentGained >= 0.75) and (percentLevel < 1.0):
+        percentLevel = 1.0
+        level = btcLastPrice()
+        print("Percent Gained: " + str(percentGained))
+        print("Percent Level: " + str(percentLevel))
+        print("Level: " + str(level))
+        print("")
+    elif (percentGained > (percentLevel + 0.5)):
+        percentLevel += 0.5
+        level = btcLastPrice()
+        print("Percent Gained: " + str(percentGained))
+        print("Percent Level: " + str(percentLevel))
+        print("Level: " + str(level))
+        print("")
+
+    stop_loss = level
+
+    if (processTrigger != percentLevel):
+        print("Changing Stop Loss")
+        changeStopLoss(stop_loss)
